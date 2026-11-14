@@ -1,0 +1,144 @@
+<resources>
+    <string name="app_name">Redirect</string>
+
+    <!-- Navigation -->
+    <string name="nav_links">Links</string>
+    <string name="nav_share">Share</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Auth & Connection -->
+    <string name="auth_title">Connect to Redirect</string>
+    <string name="auth_subtitle">Self-hosted URL shortener on Cloudflare Workers</string>
+    <string name="auth_server_url_label">Server Base URL</string>
+    <string name="auth_server_url_placeholder">https://go.example.com</string>
+    <string name="auth_token_label">API Token</string>
+    <string name="auth_token_placeholder">Paste Bearer token or API key</string>
+    <string name="auth_show_token">Show token</string>
+    <string name="auth_hide_token">Hide token</string>
+    <string name="auth_connect">Connect</string>
+    <string name="auth_connecting">Verifying…</string>
+    <string name="auth_zero_trust_title">Optional Cloudflare Zero Trust (Access)</string>
+    <string name="auth_cf_client_id">CF-Access-Client-Id</string>
+    <string name="auth_cf_client_secret">CF-Access-Client-Secret</string>
+    <string name="auth_kv_help_title">First-time setup? Retrieve initial_token</string>
+    <string name="auth_kv_help_body">If no static API_KEY secret is configured on your Worker, pinging the server generates an initial_token in Cloudflare KV. Retrieve it with Wrangler:</string>
+    <string name="auth_copy_wrangler_cmd">Copy Wrangler Command</string>
+    <string name="auth_ping_server">Ping Server to Bootstrap</string>
+    <string name="auth_ping_sent">Bootstrap ping sent. Check Cloudflare KV for initial_token.</string>
+    <string name="auth_access_expired_banner">Cloudflare Access intercepted the API response. Check your Zero Trust Service Token headers in Settings or reconnect.</string>
+    <string name="auth_kv_grace_warning">Token was saved recently and may still be propagating across Cloudflare KV edge nodes (up to 60s).</string>
+
+    <!-- Dashboard / Links -->
+    <string name="links_quick_placeholder">https://example.com/very/long/url</string>
+    <string name="links_shorten">Shorten</string>
+    <string name="links_advanced">Advanced</string>
+    <string name="links_search_placeholder">Search slug, URL, title…</string>
+    <string name="links_clear_search">Clear search</string>
+    <string name="links_status_all">All</string>
+    <string name="links_status_active">Active Only</string>
+    <string name="links_status_inactive">Inactive Only</string>
+    <string name="links_sort_newest">Newest First</string>
+    <string name="links_sort_oldest">Oldest First</string>
+    <string name="links_sort_updated">Recently Updated</string>
+    <string name="links_sort_clicks">Most Clicks</string>
+    <string name="links_sort_slug">Slug (A-Z)</string>
+    <string name="links_empty_title">No links yet</string>
+    <string name="links_empty_subtitle">Paste a long URL above to create your first short link.</string>
+    <string name="links_no_results">No links match your current filters.</string>
+    <string name="links_copied_toast">Copied %1$s</string>
+    <string name="links_action_qr">QR Code</string>
+    <string name="links_action_stats">View Stats</string>
+    <string name="links_action_edit">Edit</string>
+    <string name="links_action_delete">Delete</string>
+    <string name="links_delete_title">Delete Short Link?</string>
+    <string name="links_delete_message">This permanently deletes /%1$s and its click analytics. Existing links pointing to it will return 404.</string>
+    <string name="links_confirm_delete">Delete</string>
+    <string name="links_cancel">Cancel</string>
+    <string name="links_previous">Previous</string>
+    <string name="links_next">Next</string>
+    <string name="links_more_actions">More actions</string>
+    <string name="links_copy_short_url">Copy short URL</string>
+
+    <!-- Link Form -->
+    <string name="form_create_title">Create Short Link</string>
+    <string name="form_edit_title">Edit Short Link</string>
+    <string name="form_target_url_label">Destination URL *</string>
+    <string name="form_title_label">Title (optional)</string>
+    <string name="form_slug_label">Custom Slug (optional)</string>
+    <string name="form_slug_generate">Generate random slug</string>
+    <string name="form_slug_rename_warning">Changing the slug breaks previously shared links for the old slug.</string>
+    <string name="form_status_code_label">Redirect Status</string>
+    <string name="form_permanent_redirect_warning">301 and 308 are permanent redirects. Browsers cache them aggressively and future edits may not take effect for repeat visitors.</string>
+    <string name="form_active_label">Active</string>
+    <string name="form_forward_query_label">Forward query parameters</string>
+    <string name="form_tags_label">Tags (up to 10)</string>
+    <string name="form_tags_placeholder">Add tag</string>
+    <string name="form_expiry_label">Expiration (local time)</string>
+    <string name="form_expiry_set">Set expiration</string>
+    <string name="form_expiry_clear">Clear</string>
+    <string name="form_save">Save Changes</string>
+    <string name="form_create">Create Link</string>
+    <string name="form_no_changes">No changes to save</string>
+
+    <!-- Stats -->
+    <string name="stats_title">Link Analytics</string>
+    <string name="stats_back">Back</string>
+    <string name="stats_refresh">Refresh</string>
+    <string name="stats_total_clicks">Total Clicks</string>
+    <string name="stats_period_clicks">Clicks in Period</string>
+    <string name="stats_peak_day">Peak Day</string>
+    <string name="stats_last_clicked">Last Clicked</string>
+    <string name="stats_daily_chart_title">Daily Clicks (UTC)</string>
+    <string name="stats_top_countries">Top Countries</string>
+    <string name="stats_top_referrers">Top Referrers</string>
+    <string name="stats_dimensions_disabled">Country and referrer breakdowns are disabled or have no recorded dimensions for this period.</string>
+    <string name="stats_never">Never</string>
+
+    <!-- QR Code -->
+    <string name="qr_title">QR Code</string>
+    <string name="qr_share_image">Share Image</string>
+    <string name="qr_save_png">Save PNG</string>
+    <string name="qr_saved_success">QR PNG saved</string>
+    <string name="qr_close">Close</string>
+
+    <!-- Share -->
+    <string name="share_title">Share &amp; Shorten</string>
+    <string name="share_subtitle">Shorten a URL directly or from the Android Share sheet</string>
+    <string name="share_url_label">Destination URL *</string>
+    <string name="share_title_label">Title (optional)</string>
+    <string name="share_slug_label">Custom Slug (optional)</string>
+    <string name="share_existing_found">Existing link found: /%1$s</string>
+    <string name="share_shorten_button">Shorten &amp; Copy</string>
+    <string name="share_ready_title">Short Link Ready</string>
+    <string name="share_copy_link">Copy Link</string>
+    <string name="share_native_share">Share</string>
+    <string name="share_view_analytics">View Analytics</string>
+    <string name="share_shorten_another">Shorten Another</string>
+
+    <!-- Settings & Import/Export -->
+    <string name="settings_session_title">Current Session</string>
+    <string name="settings_server_url">Server URL</string>
+    <string name="settings_zero_trust">Cloudflare Zero Trust</string>
+    <string name="settings_zero_trust_enabled">Service Token Configured</string>
+    <string name="settings_zero_trust_disabled">Not Configured</string>
+    <string name="settings_principal">Authenticated Principal</string>
+    <string name="settings_stored_token">Stored Token</string>
+    <string name="settings_sign_out">Lock / Sign Out</string>
+    <string name="settings_tokens_title">Active API Tokens</string>
+    <string name="settings_create_token">Create Token</string>
+    <string name="settings_rotate_initial">Rotate Initial</string>
+    <string name="settings_revoke">Revoke</string>
+    <string name="settings_data_title">Data Portability</string>
+    <string name="settings_export_json">Export All Links (JSON)</string>
+    <string name="settings_import_json">Import Links (JSON)</string>
+    <string name="import_title">Import Links</string>
+    <string name="import_conflict_skip">Skip existing slugs</string>
+    <string name="import_conflict_overwrite">Overwrite existing slugs</string>
+    <string name="import_select_file">Choose JSON File</string>
+    <string name="import_start">Start Import</string>
+    <string name="import_summary_created">Created</string>
+    <string name="import_summary_updated">Updated</string>
+    <string name="import_summary_skipped">Skipped</string>
+    <string name="import_summary_failed">Failed</string>
+    <string name="import_copy_slugs">Copy Slugs</string>
+</resources>
