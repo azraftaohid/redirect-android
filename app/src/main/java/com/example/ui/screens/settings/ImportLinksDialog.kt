@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -62,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -137,12 +141,19 @@ fun ImportLinksDialog(
     )
   }
 
+  val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
   Dialog(
     onDismissRequest = { if (!state.isImporting) onDismiss() },
-    properties = DialogProperties(usePlatformDefaultWidth = false),
+    properties = DialogProperties(
+      usePlatformDefaultWidth = false,
+      decorFitsSystemWindows = false,
+    ),
   ) {
     BoxWithConstraints(
-      modifier = Modifier.fillMaxSize(),
+      modifier = Modifier
+        .fillMaxSize()
+        .imePadding(),
       contentAlignment = Alignment.Center,
     ) {
       val isTabletModal = maxWidth >= 600.dp
@@ -384,7 +395,11 @@ fun ImportLinksDialog(
           Surface(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 3.dp,
-            modifier = if (isTabletModal) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().navigationBarsPadding(),
+            modifier = if (isTabletModal || isImeVisible) {
+              Modifier.fillMaxWidth()
+            } else {
+              Modifier.fillMaxWidth().navigationBarsPadding()
+            },
           ) {
             Column(
               modifier = Modifier

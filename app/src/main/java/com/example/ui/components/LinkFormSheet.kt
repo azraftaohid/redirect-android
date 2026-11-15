@@ -1,7 +1,9 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -9,10 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -46,13 +51,17 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -69,7 +78,14 @@ import com.example.ui.theme.MonoFontFamily
 import java.util.Calendar
 import java.util.TimeZone
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+private enum class LinkFormFocusField {
+  TARGET_URL,
+  TITLE,
+  SLUG,
+  TAG_DRAFT,
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun LinkFormSheet(
   existingLink: LinkRecord?,
@@ -103,6 +119,30 @@ fun LinkFormSheet(
   var showDatePicker by remember { mutableStateOf(false) }
   var pendingSelectedUtcDayMillis by remember { mutableStateOf<Long?>(null) }
 
+  val targetUrlRequester = remember { BringIntoViewRequester() }
+  val titleRequester = remember { BringIntoViewRequester() }
+  val slugRequester = remember { BringIntoViewRequester() }
+  val tagDraftRequester = remember { BringIntoViewRequester() }
+  val submitRequester = remember { BringIntoViewRequester() }
+  var focusedField by remember { mutableStateOf<LinkFormFocusField?>(null) }
+  var viewportHeightPx by remember { mutableIntStateOf(0) }
+
+  LaunchedEffect(focusedField, viewportHeightPx) {
+    val activeField = focusedField ?: return@LaunchedEffect
+    if (viewportHeightPx <= 0) return@LaunchedEffect
+    withFrameNanos { }
+    withFrameNanos { }
+    if (activeField == LinkFormFocusField.TAG_DRAFT) {
+      submitRequester.bringIntoView()
+    }
+    when (activeField) {
+      LinkFormFocusField.TARGET_URL -> targetUrlRequester
+      LinkFormFocusField.TITLE -> titleRequester
+      LinkFormFocusField.SLUG -> slugRequester
+      LinkFormFocusField.TAG_DRAFT -> tagDraftRequester
+    }.bringIntoView()
+  }
+
   val addTagFromDraft: () -> Unit = {
     val normalized = ValidationUtils.normalizeTag(tagDraft)
     if (normalized.isNotEmpty() && normalized.length <= ValidationUtils.MAX_TAG_LENGTH) {
@@ -120,6 +160,8 @@ fun LinkFormSheet(
     Column(
       modifier = Modifier
         .fillMaxWidth()
+        .imePadding()
+        .onSizeChanged { viewportHeightPx = it.height }
         .verticalScroll(rememberScrollState())
         .padding(horizontal = 20.dp)
         .navigationBarsPadding(),
@@ -163,6 +205,14 @@ fun LinkFormSheet(
         textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
         modifier = Modifier
           .fillMaxWidth()
+          .bringIntoViewRequester(targetUrlRequester)
+          .onFocusChanged {
+            if (it.hasFocus) {
+              focusedField = LinkFormFocusField.TARGET_URL
+            } else if (focusedField == LinkFormFocusField.TARGET_URL) {
+              focusedField = null
+            }
+          }
           .testTag("form_target_url_input"),
       )
 
@@ -176,6 +226,14 @@ fun LinkFormSheet(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         modifier = Modifier
           .fillMaxWidth()
+          .bringIntoViewRequester(titleRequester)
+          .onFocusChanged {
+            if (it.hasFocus) {
+              focusedField = LinkFormFocusField.TITLE
+            } else if (focusedField == LinkFormFocusField.TITLE) {
+              focusedField = null
+            }
+          }
           .testTag("form_title_input"),
       )
 
@@ -189,6 +247,7 @@ fun LinkFormSheet(
           label = { Text(stringResource(R.string.form_slug_label)) },
           placeholder = { Text("Auto-generated if empty") },
           singleLine = true,
+          keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
           textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
           trailingIcon = {
             IconButton(
@@ -206,6 +265,14 @@ fun LinkFormSheet(
           },
           modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(slugRequester)
+            .onFocusChanged {
+              if (it.hasFocus) {
+                focusedField = LinkFormFocusField.SLUG
+              } else if (focusedField == LinkFormFocusField.SLUG) {
+                focusedField = null
+              }
+            }
             .testTag("form_slug_input"),
         )
         if (isEdit && existingLink != null && slug.trim() != existingLink.slug) {
@@ -374,6 +441,14 @@ fun LinkFormSheet(
             keyboardActions = KeyboardActions(onDone = { addTagFromDraft() }),
             modifier = Modifier
               .weight(1f)
+              .bringIntoViewRequester(tagDraftRequester)
+              .onFocusChanged {
+                if (it.hasFocus) {
+                  focusedField = LinkFormFocusField.TAG_DRAFT
+                } else if (focusedField == LinkFormFocusField.TAG_DRAFT) {
+                  focusedField = null
+                }
+              }
               .testTag("form_tag_input"),
           )
           IconButton(
@@ -429,89 +504,96 @@ fun LinkFormSheet(
       }
 
       // Submit button
-      Button(
-        onClick = {
-          val normalizedTarget = ValidationUtils.normalizeTargetUrlInput(targetUrl)
-          val urlErr = ValidationUtils.validateTargetUrl(normalizedTarget, serverBaseUrl)
-          if (urlErr != null) {
-            localError = urlErr
-            return@Button
-          }
-          val trimmedSlug = slug.trim()
-          if (trimmedSlug.isNotEmpty() || isEdit) {
-            val slugErr = ValidationUtils.validateSlug(trimmedSlug)
-            if (slugErr != null) {
-              localError = slugErr
-              return@Button
-            }
-          }
-
-          val finalTags = if (tagDraft.isNotBlank()) {
-            ValidationUtils.normalizeTags(tags + tagDraft)
-          } else {
-            ValidationUtils.normalizeTags(tags)
-          }
-
-          if (!isEdit) {
-            onCreate(
-              CreateLinkRequest(
-                targetUrl = normalizedTarget,
-                slug = trimmedSlug.ifEmpty { null },
-                title = title.trim().ifEmpty { null },
-                statusCode = statusCode,
-                tags = finalTags,
-                isActive = isActive,
-                forwardQuery = forwardQuery,
-                expiresAt = expiresAtIso,
-              ),
-            )
-          } else {
-            val orig = existingLink!!
-            val trimmedTitle = title.trim().ifEmpty { null }
-            val origTitle = orig.title?.trim()?.ifEmpty { null }
-            val patch = LinkPatch(
-              slug = trimmedSlug,
-              hasSlug = trimmedSlug != orig.slug,
-              targetUrl = normalizedTarget,
-              hasTargetUrl = normalizedTarget != orig.targetUrl,
-              title = trimmedTitle,
-              hasTitle = trimmedTitle != origTitle,
-              statusCode = statusCode,
-              hasStatusCode = statusCode != orig.statusCode,
-              tags = finalTags,
-              hasTags = finalTags != orig.tags,
-              isActive = isActive,
-              hasIsActive = isActive != orig.isActive,
-              forwardQuery = forwardQuery,
-              hasForwardQuery = forwardQuery != orig.forwardQuery,
-              expiresAt = expiresAtIso,
-              hasExpiresAt = expiresAtIso != orig.expiresAt,
-            )
-            if (patch.isEmpty) {
-              onDismiss()
-            } else {
-              onPatch(orig.id, patch)
-            }
-          }
-        },
-        enabled = !isSubmitting,
+      Box(
         modifier = Modifier
           .fillMaxWidth()
-          .height(48.dp)
-          .testTag("form_submit_button"),
+          .bringIntoViewRequester(submitRequester)
+          .padding(bottom = 4.dp),
       ) {
-        if (isSubmitting) {
-          CircularProgressIndicator(
-            modifier = Modifier.size(18.dp),
-            strokeWidth = 2.dp,
-            color = MaterialTheme.colorScheme.onPrimary,
-          )
-        } else {
-          Text(stringResource(if (isEdit) R.string.form_save else R.string.form_create))
+        Button(
+          onClick = {
+            val normalizedTarget = ValidationUtils.normalizeTargetUrlInput(targetUrl)
+            val urlErr = ValidationUtils.validateTargetUrl(normalizedTarget, serverBaseUrl)
+            if (urlErr != null) {
+              localError = urlErr
+              return@Button
+            }
+            val trimmedSlug = slug.trim()
+            if (trimmedSlug.isNotEmpty() || isEdit) {
+              val slugErr = ValidationUtils.validateSlug(trimmedSlug)
+              if (slugErr != null) {
+                localError = slugErr
+                return@Button
+              }
+            }
+
+            val finalTags = if (tagDraft.isNotBlank()) {
+              ValidationUtils.normalizeTags(tags + tagDraft)
+            } else {
+              ValidationUtils.normalizeTags(tags)
+            }
+
+            if (!isEdit) {
+              onCreate(
+                CreateLinkRequest(
+                  targetUrl = normalizedTarget,
+                  slug = trimmedSlug.ifEmpty { null },
+                  title = title.trim().ifEmpty { null },
+                  statusCode = statusCode,
+                  tags = finalTags,
+                  isActive = isActive,
+                  forwardQuery = forwardQuery,
+                  expiresAt = expiresAtIso,
+                ),
+              )
+            } else {
+              val orig = existingLink!!
+              val trimmedTitle = title.trim().ifEmpty { null }
+              val origTitle = orig.title?.trim()?.ifEmpty { null }
+              val patch = LinkPatch(
+                slug = trimmedSlug,
+                hasSlug = trimmedSlug != orig.slug,
+                targetUrl = normalizedTarget,
+                hasTargetUrl = normalizedTarget != orig.targetUrl,
+                title = trimmedTitle,
+                hasTitle = trimmedTitle != origTitle,
+                statusCode = statusCode,
+                hasStatusCode = statusCode != orig.statusCode,
+                tags = finalTags,
+                hasTags = finalTags != orig.tags,
+                isActive = isActive,
+                hasIsActive = isActive != orig.isActive,
+                forwardQuery = forwardQuery,
+                hasForwardQuery = forwardQuery != orig.forwardQuery,
+                expiresAt = expiresAtIso,
+                hasExpiresAt = expiresAtIso != orig.expiresAt,
+              )
+              if (patch.isEmpty) {
+                onDismiss()
+              } else {
+                onPatch(orig.id, patch)
+              }
+            }
+          },
+          enabled = !isSubmitting,
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .testTag("form_submit_button"),
+        ) {
+          if (isSubmitting) {
+            CircularProgressIndicator(
+              modifier = Modifier.size(18.dp),
+              strokeWidth = 2.dp,
+              color = MaterialTheme.colorScheme.onPrimary,
+            )
+          } else {
+            Text(stringResource(if (isEdit) R.string.form_save else R.string.form_create))
+          }
         }
       }
 
-      Spacer(Modifier.height(16.dp))
+      Spacer(Modifier.height(12.dp))
     }
   }
 

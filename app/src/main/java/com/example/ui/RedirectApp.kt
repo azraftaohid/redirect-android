@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -113,7 +114,9 @@ fun RedirectApp(
       AuthScreen(
         session = session,
         repository = repository,
-        modifier = Modifier.padding(innerPadding),
+        modifier = Modifier
+          .padding(innerPadding)
+          .consumeWindowInsets(innerPadding),
       )
     }
     return
@@ -257,7 +260,8 @@ fun RedirectApp(
       Row(
         modifier = Modifier
           .fillMaxSize()
-          .padding(innerPadding),
+          .padding(innerPadding)
+          .consumeWindowInsets(innerPadding),
       ) {
         if (useRail && !isOnStats) {
           NavigationRail(

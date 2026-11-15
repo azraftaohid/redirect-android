@@ -3,6 +3,7 @@ package com.example.ui.screens.auth
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,10 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -41,13 +45,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -72,6 +81,14 @@ import kotlinx.coroutines.launch
 private const val WRANGLER_KV_CMD =
   "pnpm --filter @redirect/api exec wrangler kv key get initial_token --binding AUTH_TOKENS --local"
 
+private enum class AuthFocusField {
+  SERVER_URL,
+  API_TOKEN,
+  CF_CLIENT_ID,
+  CF_CLIENT_SECRET,
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AuthScreen(
   session: SessionState,
@@ -99,6 +116,32 @@ fun AuthScreen(
   var isPinging by remember { mutableStateOf(false) }
   var pingStatusMessage by remember { mutableStateOf<String?>(null) }
 
+  val scrollState = rememberScrollState()
+  val connectButtonRequester = remember { BringIntoViewRequester() }
+  val serverUrlRequester = remember { BringIntoViewRequester() }
+  val apiTokenRequester = remember { BringIntoViewRequester() }
+  val cfClientIdRequester = remember { BringIntoViewRequester() }
+  val cfClientSecretRequester = remember { BringIntoViewRequester() }
+  var focusedField by remember { mutableStateOf<AuthFocusField?>(null) }
+  var viewportHeightPx by remember { mutableIntStateOf(0) }
+
+  LaunchedEffect(focusedField, viewportHeightPx, zeroTrustExpanded) {
+    val activeField = focusedField ?: return@LaunchedEffect
+    if (viewportHeightPx <= 0) return@LaunchedEffect
+    withFrameNanos { }
+    withFrameNanos { }
+    if (activeField != AuthFocusField.SERVER_URL) {
+      connectButtonRequester.bringIntoView()
+    }
+    val fieldRequester = when (activeField) {
+      AuthFocusField.SERVER_URL -> serverUrlRequester
+      AuthFocusField.API_TOKEN -> apiTokenRequester
+      AuthFocusField.CF_CLIENT_ID -> cfClientIdRequester
+      AuthFocusField.CF_CLIENT_SECRET -> cfClientSecretRequester
+    }
+    fieldRequester.bringIntoView()
+  }
+
   val submitConnect: () -> Unit = {
     scope.launch {
       repository.connect(baseUrl, apiToken, cfClientId, cfClientSecret)
@@ -108,7 +151,9 @@ fun AuthScreen(
   Box(
     modifier = modifier
       .fillMaxSize()
-      .verticalScroll(rememberScrollState())
+      .imePadding()
+      .onSizeChanged { viewportHeightPx = it.height }
+      .verticalScroll(scrollState)
       .padding(horizontal = 20.dp, vertical = 24.dp),
     contentAlignment = Alignment.Center,
   ) {
@@ -184,6 +229,14 @@ fun AuthScreen(
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
             modifier = Modifier
               .fillMaxWidth()
+              .bringIntoViewRequester(serverUrlRequester)
+              .onFocusChanged {
+                if (it.hasFocus) {
+                  focusedField = AuthFocusField.SERVER_URL
+                } else if (focusedField == AuthFocusField.SERVER_URL) {
+                  focusedField = null
+                }
+              }
               .testTag("auth_server_url_input"),
           )
 
@@ -200,7 +253,7 @@ fun AuthScreen(
             },
             keyboardOptions = KeyboardOptions(
               keyboardType = KeyboardType.Password,
-              imeAction = ImeAction.Done,
+              imeAction = if (zeroTrustExpanded) ImeAction.Next else ImeAction.Done,
             ),
             keyboardActions = KeyboardActions(onDone = { submitConnect() }),
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
@@ -219,6 +272,14 @@ fun AuthScreen(
             },
             modifier = Modifier
               .fillMaxWidth()
+              .bringIntoViewRequester(apiTokenRequester)
+              .onFocusChanged {
+                if (it.hasFocus) {
+                  focusedField = AuthFocusField.API_TOKEN
+                } else if (focusedField == AuthFocusField.API_TOKEN) {
+                  focusedField = null
+                }
+              }
               .testTag("auth_token_input"),
           )
 
@@ -264,9 +325,18 @@ fun AuthScreen(
                     onValueChange = { cfClientId = it },
                     label = { Text(stringResource(R.string.auth_cf_client_id)) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
                     modifier = Modifier
                       .fillMaxWidth()
+                      .bringIntoViewRequester(cfClientIdRequester)
+                      .onFocusChanged {
+                        if (it.hasFocus) {
+                          focusedField = AuthFocusField.CF_CLIENT_ID
+                        } else if (focusedField == AuthFocusField.CF_CLIENT_ID) {
+                          focusedField = null
+                        }
+                      }
                       .testTag("auth_cf_client_id_input"),
                   )
                   OutlinedTextField(
@@ -275,9 +345,22 @@ fun AuthScreen(
                     label = { Text(stringResource(R.string.auth_cf_client_secret)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                      keyboardType = KeyboardType.Password,
+                      imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { submitConnect() }),
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
                     modifier = Modifier
                       .fillMaxWidth()
+                      .bringIntoViewRequester(cfClientSecretRequester)
+                      .onFocusChanged {
+                        if (it.hasFocus) {
+                          focusedField = AuthFocusField.CF_CLIENT_SECRET
+                        } else if (focusedField == AuthFocusField.CF_CLIENT_SECRET) {
+                          focusedField = null
+                        }
+                      }
                       .testTag("auth_cf_client_secret_input"),
                   )
                 }
@@ -285,24 +368,31 @@ fun AuthScreen(
             }
           }
 
-          Button(
-            onClick = submitConnect,
-            enabled = !session.isConnecting,
+          Box(
             modifier = Modifier
               .fillMaxWidth()
-              .height(48.dp)
-              .testTag("auth_connect_button"),
+              .bringIntoViewRequester(connectButtonRequester)
+              .padding(bottom = 4.dp),
           ) {
-            if (session.isConnecting) {
-              CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary,
-              )
-              Spacer(Modifier.width(8.dp))
-              Text(stringResource(R.string.auth_connecting))
-            } else {
-              Text(stringResource(R.string.auth_connect))
+            Button(
+              onClick = submitConnect,
+              enabled = !session.isConnecting,
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .testTag("auth_connect_button"),
+            ) {
+              if (session.isConnecting) {
+                CircularProgressIndicator(
+                  modifier = Modifier.size(18.dp),
+                  strokeWidth = 2.dp,
+                  color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.auth_connecting))
+              } else {
+                Text(stringResource(R.string.auth_connect))
+              }
             }
           }
         }

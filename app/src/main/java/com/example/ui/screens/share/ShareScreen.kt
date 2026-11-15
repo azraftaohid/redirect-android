@@ -2,17 +2,23 @@ package com.example.ui.screens.share
 
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,9 +44,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -57,6 +70,13 @@ import com.example.ui.theme.LocalSemanticColors
 import com.example.ui.theme.MonoFontFamily
 import kotlinx.coroutines.launch
 
+private enum class ShareFocusField {
+  URL,
+  TITLE,
+  SLUG,
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShareScreen(
   viewModel: ShareViewModel,
@@ -70,6 +90,29 @@ fun ShareScreen(
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val semantic = LocalSemanticColors.current
+
+  val scrollState = rememberScrollState()
+  val urlRequester = remember { BringIntoViewRequester() }
+  val titleRequester = remember { BringIntoViewRequester() }
+  val slugRequester = remember { BringIntoViewRequester() }
+  val submitRequester = remember { BringIntoViewRequester() }
+  var focusedField by remember { mutableStateOf<ShareFocusField?>(null) }
+  var viewportHeightPx by remember { mutableIntStateOf(0) }
+
+  LaunchedEffect(focusedField, viewportHeightPx) {
+    val activeField = focusedField ?: return@LaunchedEffect
+    if (viewportHeightPx <= 0) return@LaunchedEffect
+    withFrameNanos { }
+    withFrameNanos { }
+    if (activeField != ShareFocusField.URL) {
+      submitRequester.bringIntoView()
+    }
+    when (activeField) {
+      ShareFocusField.URL -> urlRequester
+      ShareFocusField.TITLE -> titleRequester
+      ShareFocusField.SLUG -> slugRequester
+    }.bringIntoView()
+  }
 
   LaunchedEffect(viewModel) {
     viewModel.events.collect { event ->
@@ -85,7 +128,9 @@ fun ShareScreen(
   Column(
     modifier = modifier
       .fillMaxSize()
-      .verticalScroll(rememberScrollState())
+      .imePadding()
+      .onSizeChanged { viewportHeightPx = it.height }
+      .verticalScroll(scrollState)
       .padding(16.dp),
     verticalArrangement = Arrangement.spacedBy(14.dp),
   ) {
@@ -252,6 +297,14 @@ fun ShareScreen(
           textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
           modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(urlRequester)
+            .onFocusChanged {
+              if (it.hasFocus) {
+                focusedField = ShareFocusField.URL
+              } else if (focusedField == ShareFocusField.URL) {
+                focusedField = null
+              }
+            }
             .testTag("share_url_input"),
         )
 
@@ -316,6 +369,14 @@ fun ShareScreen(
           keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
           modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(titleRequester)
+            .onFocusChanged {
+              if (it.hasFocus) {
+                focusedField = ShareFocusField.TITLE
+              } else if (focusedField == ShareFocusField.TITLE) {
+                focusedField = null
+              }
+            }
             .testTag("share_title_input"),
         )
 
@@ -325,6 +386,14 @@ fun ShareScreen(
           label = { Text(stringResource(R.string.share_slug_label)) },
           placeholder = { Text("Auto-generated if empty") },
           singleLine = true,
+          keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+          keyboardActions = KeyboardActions(
+            onDone = {
+              if (!uiState.isSubmitting && uiState.url.isNotBlank()) {
+                viewModel.shorten()
+              }
+            },
+          ),
           textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
           trailingIcon = {
             IconButton(
@@ -339,25 +408,40 @@ fun ShareScreen(
           },
           modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(slugRequester)
+            .onFocusChanged {
+              if (it.hasFocus) {
+                focusedField = ShareFocusField.SLUG
+              } else if (focusedField == ShareFocusField.SLUG) {
+                focusedField = null
+              }
+            }
             .testTag("share_slug_input"),
         )
 
-        Button(
-          onClick = { viewModel.shorten() },
-          enabled = !uiState.isSubmitting && uiState.url.isNotBlank(),
+        Box(
           modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
-            .testTag("share_submit_button"),
+            .bringIntoViewRequester(submitRequester)
+            .padding(bottom = 4.dp),
         ) {
-          if (uiState.isSubmitting) {
-            CircularProgressIndicator(
-              modifier = Modifier.size(18.dp),
-              strokeWidth = 2.dp,
-              color = MaterialTheme.colorScheme.onPrimary,
-            )
-          } else {
-            Text(stringResource(R.string.share_shorten_button))
+          Button(
+            onClick = { viewModel.shorten() },
+            enabled = !uiState.isSubmitting && uiState.url.isNotBlank(),
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(48.dp)
+              .testTag("share_submit_button"),
+          ) {
+            if (uiState.isSubmitting) {
+              CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary,
+              )
+            } else {
+              Text(stringResource(R.string.share_shorten_button))
+            }
           }
         }
       }

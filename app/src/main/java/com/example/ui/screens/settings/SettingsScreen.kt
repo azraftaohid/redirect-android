@@ -13,10 +13,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Autorenew
@@ -133,6 +136,7 @@ fun SettingsScreen(
   LazyColumn(
     modifier = modifier
       .fillMaxSize()
+      .imePadding()
       .testTag("settings_list"),
     contentPadding = PaddingValues(16.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -789,7 +793,10 @@ fun SettingsScreen(
       onDismissRequest = { showZeroTrustEditDialog = false },
       title = { Text(stringResource(R.string.auth_zero_trust_title)) },
       text = {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(
+          modifier = Modifier.verticalScroll(rememberScrollState()),
+          verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
           OutlinedTextField(
             value = cfId,
             onValueChange = { cfId = it },
@@ -864,7 +871,10 @@ private fun CreateTokenDialog(
     onDismissRequest = { if (!isSubmitting) onDismiss() },
     title = { Text(stringResource(R.string.settings_create_token)) },
     text = {
-      Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+      Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
         if (!error.isNullOrBlank()) {
           Text(
             text = error,

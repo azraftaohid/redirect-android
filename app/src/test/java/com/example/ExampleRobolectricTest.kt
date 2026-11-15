@@ -1,7 +1,14 @@
 package com.example
 
 import android.content.Context
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -9,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.network.RedirectApiClient
 import com.example.data.repository.RedirectRepository
@@ -23,6 +31,8 @@ import com.example.ui.screens.auth.AuthScreen
 import com.example.ui.screens.settings.ImportLinksDialog
 import com.example.ui.screens.settings.SettingsScreen
 import com.example.ui.screens.settings.SettingsViewModel
+import com.example.ui.screens.share.ShareScreen
+import com.example.ui.screens.share.ShareViewModel
 import com.example.ui.theme.RedirectTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -80,6 +90,73 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("auth_kv_help_toggle").performScrollTo().performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag("auth_copy_wrangler_button").performScrollTo().assertIsDisplayed()
+  }
+
+  @Test
+  @Config(qualifiers = "w411dp-h891dp")
+  fun authScreen_focusingCfClientIdInCompactViewport_keepsFieldAndConnectButtonVisible() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val repo = RedirectRepository(SecurePreferences(context), RedirectApiClient())
+    var viewportHeight by mutableStateOf(800.dp)
+
+    composeTestRule.setContent {
+      RedirectTheme {
+        Box(modifier = Modifier.fillMaxWidth().height(viewportHeight)) {
+          AuthScreen(
+            session = SessionState(isBootstrapping = false),
+            repository = repo,
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("auth_zero_trust_toggle").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("auth_cf_client_id_input").performClick()
+    composeTestRule.waitForIdle()
+
+    // Simulate the on-screen keyboard opening and shrinking the available viewport.
+    viewportHeight = 420.dp
+    composeTestRule.mainClock.advanceTimeBy(300)
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("auth_cf_client_id_input").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("auth_connect_button").assertIsDisplayed()
+  }
+
+  @Test
+  @Config(qualifiers = "w411dp-h891dp")
+  fun shareScreen_focusingCustomSlugInCompactViewport_keepsFieldAndSubmitButtonVisible() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val repo = RedirectRepository(SecurePreferences(context), RedirectApiClient())
+    val vm = ShareViewModel(repo)
+    var viewportHeight by mutableStateOf(800.dp)
+
+    composeTestRule.setContent {
+      RedirectTheme {
+        Box(modifier = Modifier.fillMaxWidth().height(viewportHeight)) {
+          ShareScreen(
+            viewModel = vm,
+            serverBaseUrl = "https://go.example.com",
+            snackbarHostState = SnackbarHostState(),
+            onNavigateToStats = {},
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("share_slug_input").performClick()
+    composeTestRule.waitForIdle()
+
+    // Simulate the on-screen keyboard opening and shrinking the available viewport.
+    viewportHeight = 380.dp
+    composeTestRule.mainClock.advanceTimeBy(300)
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("share_slug_input").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("share_submit_button").assertIsDisplayed()
   }
 
   @Test
