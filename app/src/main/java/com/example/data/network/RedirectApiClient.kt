@@ -20,6 +20,7 @@ import com.example.domain.model.LinkStatsResponse
 import com.example.domain.model.LinksExportEnvelope
 import com.example.domain.model.PaginatedLinks
 import com.example.domain.model.Principal
+import com.example.domain.model.RevokeAllTokensResponse
 import com.example.domain.model.RotateInitialTokenResponse
 import com.example.domain.model.ServerConfig
 import com.example.domain.model.StatusFilter
@@ -27,7 +28,10 @@ import com.example.domain.model.TokenInfo
 import com.example.domain.model.TokensListResponse
 import com.example.domain.model.VerifyAuthResponse
 import com.example.domain.util.ValidationUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.json.Json
@@ -55,6 +59,8 @@ class AccessSessionExpiredException(
 class ImportChunkException(
   override val message: String,
   val partialResponse: ImportLinksResponse,
+  val processedCount: Int = partialResponse.summary.total,
+  val isCancelled: Boolean = false,
   val causeException: Throwable? = null,
 ) : Exception(message, causeException)
 
@@ -217,6 +223,15 @@ class RedirectApiClient(
     )
   }
 
+  suspend fun revokeAllTokens(config: ServerConfig): RevokeAllTokensResponse {
+    return executeJson(
+      config = config,
+      method = "DELETE",
+      path = "/api/v1/tokens",
+      deserializer = RevokeAllTokensResponse.serializer(),
+    )
+  }
+
   suspend fun rotateInitialToken(config: ServerConfig): RotateInitialTokenResponse {
     return executeJson(
       config = config,
@@ -277,6 +292,7 @@ class RedirectApiClient(
       val end = minOf(offset + chunkSize, links.size)
       val slice = links.subList(offset, end)
       try {
+        currentCoroutineContext().ensureActive()
         val reqBody = json.encodeToString(
           ImportLinksRequest.serializer(),
           ImportLinksRequest(version = 1, onConflict = onConflict.apiValue, links = slice),
@@ -300,6 +316,7 @@ class RedirectApiClient(
         offset = end
         onProgress(offset, links.size)
       } catch (e: Exception) {
+        val isCancelled = e is CancellationException
         val partial = ImportLinksResponse(
           version = 1,
           onConflict = onConflict.apiValue,
@@ -317,8 +334,14 @@ class RedirectApiClient(
           results = results,
         )
         throw ImportChunkException(
-          message = e.message ?: "Import failed at row ${offset + 1}.",
+          message = if (isCancelled) {
+            "Import cancelled after $offset of ${links.size} links."
+          } else {
+            e.message ?: "Import failed at row ${offset + 1}."
+          },
           partialResponse = partial,
+          processedCount = offset,
+          isCancelled = isCancelled,
           causeException = e,
         )
       }
@@ -383,10 +406,23 @@ class RedirectApiClient(
         } catch (_: Exception) {
           null
         }
+        val retryAfter = response.header("Retry-After")?.trim()
+        val detailSuffix = parsedError?.details?.toString()
+          ?.takeIf { it.isNotBlank() && it != "null" }
+          ?.let { raw -> if (raw.length > 220) " (${raw.take(220)}…)" else " ($raw)" }
+          .orEmpty()
+        val message = when {
+          response.code == 429 && !retryAfter.isNullOrEmpty() -> {
+            val base = parsedError?.message ?: "Too many requests."
+            "$base Try again in ${retryAfter}s."
+          }
+          parsedError != null -> "${parsedError.message}$detailSuffix"
+          else -> "Request failed with HTTP ${response.code}"
+        }
         throw RedirectApiException(
           status = response.code,
           code = parsedError?.code ?: "http_${response.code}",
-          message = parsedError?.message ?: "Request failed with HTTP ${response.code}",
+          message = message,
         )
       }
       try {

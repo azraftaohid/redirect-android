@@ -55,18 +55,28 @@ object ValidationUtils {
     return null
   }
 
+  private val SCHEME_REGEX = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://")
+  private val UNSAFE_URL_CHARS_REGEX = Regex("[\\u0000-\\u0020\\u007F-\\u009F\\u2028\\u2029]")
+
   fun normalizeTargetUrlInput(raw: String): String {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return ""
-    val hasScheme = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://").containsMatchIn(trimmed)
+    val hasScheme = SCHEME_REGEX.containsMatchIn(trimmed)
     return if (hasScheme) trimmed else "https://$trimmed"
   }
 
-  fun validateTargetUrl(rawUrl: String, serverBaseUrl: String? = null): String? {
+  fun validateTargetUrl(
+    rawUrl: String,
+    serverBaseUrl: String? = null,
+    precomputedServerHost: String? = null,
+  ): String? {
     val trimmed = rawUrl.trim()
     if (trimmed.isEmpty()) return "Destination URL is required."
     if (trimmed.length > MAX_URL_LENGTH) {
       return "Destination URL must be $MAX_URL_LENGTH characters or fewer."
+    }
+    if (UNSAFE_URL_CHARS_REGEX.containsMatchIn(trimmed)) {
+      return "Destination URL must not contain control characters or unencoded spaces."
     }
     val uri = try {
       URI(trimmed)
@@ -81,11 +91,10 @@ object ValidationUtils {
     if (targetHost.isNullOrBlank()) {
       return "URL must include a valid hostname."
     }
-    if (!serverBaseUrl.isNullOrBlank()) {
-      val serverHost = extractHostname(serverBaseUrl)
-      if (serverHost != null && serverHost == targetHost) {
-        return "Destination URL cannot point to this Redirect server ($serverHost)."
-      }
+    val serverHost = precomputedServerHost
+      ?: serverBaseUrl?.takeIf { it.isNotBlank() }?.let(::extractHostname)
+    if (serverHost != null && serverHost == targetHost) {
+      return "Destination URL cannot point to this Redirect server ($serverHost)."
     }
     return null
   }

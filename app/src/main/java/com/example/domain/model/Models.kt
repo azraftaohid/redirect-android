@@ -1,5 +1,7 @@
 package com.example.domain.model
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -124,6 +126,13 @@ data class DeleteResult(
 )
 
 @Serializable
+data class RevokeAllTokensResponse(
+  val deleted: Boolean,
+  val count: Int,
+  val truncated: Boolean = false,
+)
+
+@Serializable
 data class DailyClickPoint(
   val day: String,
   val clicks: Int,
@@ -197,15 +206,16 @@ data class RotateInitialTokenResponse(
   val preview: String,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ExportedLink(
   val slug: String,
   val targetUrl: String,
   val title: String? = null,
-  val statusCode: Int = 307,
-  val tags: List<String> = emptyList(),
-  val isActive: Boolean = true,
-  val forwardQuery: Boolean = true,
+  @EncodeDefault val statusCode: Int = 307,
+  @EncodeDefault val tags: List<String> = emptyList(),
+  @EncodeDefault val isActive: Boolean = true,
+  @EncodeDefault val forwardQuery: Boolean = true,
   val expiresAt: String? = null,
   val createdAt: String? = null,
   val updatedAt: String? = null,
@@ -218,18 +228,19 @@ data class ExportPagination(
   val hasMore: Boolean = false,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class LinksExportEnvelope(
-  val version: Int = 1,
-  val exportedAt: String = "",
-  val count: Int = 0,
+  @EncodeDefault val version: Int = 1,
+  @EncodeDefault val exportedAt: String = "",
+  @EncodeDefault val count: Int = 0,
   val links: List<ExportedLink>,
   val pagination: ExportPagination? = null,
 )
 
 @Serializable
 data class ImportLinkInput(
-  val slug: String,
+  val slug: String? = null,
   val targetUrl: String,
   val title: String? = null,
   val statusCode: Int? = null,
@@ -237,11 +248,14 @@ data class ImportLinkInput(
   val isActive: Boolean? = null,
   val forwardQuery: Boolean? = null,
   val expiresAt: String? = null,
+  val createdAt: String? = null,
+  val updatedAt: String? = null,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ImportLinksRequest(
-  val version: Int = 1,
+  @EncodeDefault val version: Int = 1,
   val onConflict: String,
   val links: List<ImportLinkInput>,
 )
@@ -258,7 +272,7 @@ data class ImportSummary(
 @Serializable
 data class ImportRowError(
   val index: Int,
-  val slug: String,
+  val slug: String? = null,
   val code: String,
   val message: String,
 )
@@ -266,7 +280,7 @@ data class ImportRowError(
 @Serializable
 data class ImportRowResult(
   val index: Int,
-  val slug: String,
+  val slug: String? = null,
   val status: String, // "created" | "updated" | "skipped" | "failed"
   val id: String? = null,
   val reason: String? = null, // "slug_exists" | "duplicate_in_batch" | error code

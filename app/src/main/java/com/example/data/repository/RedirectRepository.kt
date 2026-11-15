@@ -18,6 +18,7 @@ import com.example.domain.model.LinkSortOption
 import com.example.domain.model.LinkStatsResponse
 import com.example.domain.model.PaginatedLinks
 import com.example.domain.model.Principal
+import com.example.domain.model.RevokeAllTokensResponse
 import com.example.domain.model.RotateInitialTokenResponse
 import com.example.domain.model.ServerConfig
 import com.example.domain.model.StatusFilter
@@ -324,6 +325,10 @@ class RedirectRepository(
 
   suspend fun revokeToken(id: String): DeleteResult = runAuthenticated { cfg ->
     api.revokeToken(cfg, id)
+  }
+
+  suspend fun revokeAllTokens(): RevokeAllTokensResponse = runAuthenticated { cfg ->
+    api.revokeAllTokens(cfg)
   }
 
   suspend fun rotateInitialToken(): RotateInitialTokenResponse = runAuthenticated { cfg ->

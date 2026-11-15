@@ -20,14 +20,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -118,12 +122,18 @@ fun SettingsScreen(
     }
   }
 
-  LaunchedEffect(Unit) {
-    viewModel.loadTokensIfNeeded()
+  val principalKind = session.principal?.kind
+  val canManageTokens = principalKind == "env" || principalKind == "initial"
+  val isEnvKeySession = principalKind == "env"
+
+  LaunchedEffect(canManageTokens) {
+    viewModel.loadTokensIfNeeded(canManageTokens)
   }
 
   LazyColumn(
-    modifier = modifier.fillMaxSize(),
+    modifier = modifier
+      .fillMaxSize()
+      .testTag("settings_list"),
     contentPadding = PaddingValues(16.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
@@ -286,70 +296,194 @@ fun SettingsScreen(
               text = stringResource(R.string.settings_tokens_title),
               style = MaterialTheme.typography.titleLarge,
             )
-            TextButton(onClick = { viewModel.refreshTokens() }) {
-              Text("Refresh")
+            if (canManageTokens) {
+              TextButton(onClick = { viewModel.refreshTokens(canManageTokens = true) }) {
+                Text("Refresh")
+              }
             }
           }
 
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            Button(
-              onClick = { viewModel.openCreateToken() },
-              modifier = Modifier
-                .weight(1f)
-                .height(48.dp)
-                .testTag("settings_create_token_button"),
-            ) {
-              Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-              Spacer(Modifier.width(6.dp))
-              Text(stringResource(R.string.settings_create_token), maxLines = 1)
-            }
-            OutlinedButton(
-              onClick = { viewModel.requestRotateInitial() },
-              modifier = Modifier
-                .weight(1f)
-                .height(48.dp)
-                .testTag("settings_rotate_initial_button"),
-            ) {
-              Icon(Icons.Filled.Autorenew, contentDescription = null, modifier = Modifier.size(18.dp))
-              Spacer(Modifier.width(6.dp))
-              Text(stringResource(R.string.settings_rotate_initial), maxLines = 1)
-            }
-          }
-
-          if (!uiState.tokensError.isNullOrBlank()) {
+          if (!canManageTokens) {
             Surface(
-              color = semantic.dangerBg,
-              border = BorderStroke(1.dp, semantic.dangerBorder),
+              color = semantic.neutralBg,
+              border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
               shape = MaterialTheme.shapes.small,
-            ) {
-              Text(
-                text = uiState.tokensError.orEmpty(),
-                style = MaterialTheme.typography.bodySmall,
-                color = semantic.dangerText,
-                modifier = Modifier.padding(10.dp),
-              )
-            }
-          }
-
-          if (uiState.isLoadingTokens) {
-            Box(
               modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
-              contentAlignment = Alignment.Center,
+                .testTag("settings_tokens_restricted_banner"),
             ) {
-              CircularProgressIndicator(modifier = Modifier.size(24.dp))
+              Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top,
+              ) {
+                Icon(
+                  imageVector = Icons.Filled.Info,
+                  contentDescription = null,
+                  tint = semantic.neutralText,
+                  modifier = Modifier.size(18.dp),
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                  Text(
+                    text = stringResource(R.string.settings_tokens_restricted_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = semantic.neutralText,
+                  )
+                  Text(
+                    text = stringResource(R.string.settings_tokens_restricted_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
+              }
             }
-          } else if (uiState.tokens.isEmpty()) {
-            Text(
-              text = "No managed KV tokens found.",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
           } else {
+            if (isEnvKeySession) {
+              Surface(
+                color = semantic.warningBg,
+                border = BorderStroke(1.dp, semantic.warningBorder),
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("settings_lockdown_banner"),
+              ) {
+                Row(
+                  modifier = Modifier.padding(12.dp),
+                  horizontalArrangement = Arrangement.spacedBy(10.dp),
+                  verticalAlignment = Alignment.Top,
+                ) {
+                  Icon(
+                    imageVector = Icons.Filled.WarningAmber,
+                    contentDescription = null,
+                    tint = semantic.warningText,
+                    modifier = Modifier.size(18.dp),
+                  )
+                  Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                      text = stringResource(R.string.settings_lockdown_title),
+                      style = MaterialTheme.typography.labelLarge,
+                      color = semantic.warningText,
+                    )
+                    Text(
+                      text = stringResource(R.string.settings_lockdown_body),
+                      style = MaterialTheme.typography.bodySmall,
+                      color = semantic.warningText,
+                    )
+                  }
+                }
+              }
+            } else {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+              ) {
+                Button(
+                  onClick = { viewModel.openCreateToken() },
+                  modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .testTag("settings_create_token_button"),
+                ) {
+                  Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                  Spacer(Modifier.width(6.dp))
+                  Text(stringResource(R.string.settings_create_token), maxLines = 1)
+                }
+                OutlinedButton(
+                  onClick = { viewModel.requestRotateInitial() },
+                  modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .testTag("settings_rotate_initial_button"),
+                ) {
+                  Icon(Icons.Filled.Autorenew, contentDescription = null, modifier = Modifier.size(18.dp))
+                  Spacer(Modifier.width(6.dp))
+                  Text(stringResource(R.string.settings_rotate_initial), maxLines = 1)
+                }
+              }
+            }
+
+            val customTokenCount = uiState.tokens.count { it.id != "initial" && it.isInitial != true }
+            if (customTokenCount > 0) {
+              OutlinedButton(
+                onClick = { viewModel.requestRevokeAll() },
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = semantic.dangerText),
+                border = BorderStroke(1.dp, semantic.dangerBorder),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(48.dp)
+                  .testTag("settings_revoke_all_custom_button"),
+              ) {
+                Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("${stringResource(R.string.settings_revoke_all_custom)} ($customTokenCount)")
+              }
+            }
+
+            if (!uiState.tokensBannerMessage.isNullOrBlank()) {
+              Surface(
+                color = semantic.warningBg,
+                border = BorderStroke(1.dp, semantic.warningBorder),
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("settings_tokens_banner"),
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                ) {
+                  Text(
+                    text = uiState.tokensBannerMessage.orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = semantic.warningText,
+                    modifier = Modifier.weight(1f),
+                  )
+                  IconButton(
+                    onClick = { viewModel.dismissTokensBanner() },
+                    modifier = Modifier.size(36.dp),
+                  ) {
+                    Icon(
+                      imageVector = Icons.Filled.Close,
+                      contentDescription = "Dismiss notice",
+                      tint = semantic.warningText,
+                      modifier = Modifier.size(16.dp),
+                    )
+                  }
+                }
+              }
+            }
+
+            if (!uiState.tokensError.isNullOrBlank()) {
+              Surface(
+                color = semantic.dangerBg,
+                border = BorderStroke(1.dp, semantic.dangerBorder),
+                shape = MaterialTheme.shapes.small,
+              ) {
+                Text(
+                  text = uiState.tokensError.orEmpty(),
+                  style = MaterialTheme.typography.bodySmall,
+                  color = semantic.dangerText,
+                  modifier = Modifier.padding(10.dp),
+                )
+              }
+            }
+
+            if (uiState.isLoadingTokens) {
+              Box(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center,
+              ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+              }
+            } else if (uiState.tokens.isEmpty()) {
+              Text(
+                text = "No managed KV tokens found.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            } else {
             uiState.tokens.forEachIndexed { idx, tok ->
               if (idx > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
               Row(
@@ -408,6 +542,7 @@ fun SettingsScreen(
                 }
               }
             }
+          }
           }
         }
       }
@@ -593,13 +728,53 @@ fun SettingsScreen(
     )
   }
 
+  if (uiState.showRevokeAllConfirm) {
+    AlertDialog(
+      onDismissRequest = { if (!uiState.isRevokingAll) viewModel.cancelRevokeAll() },
+      title = { Text("Revoke All Custom Tokens?") },
+      text = {
+        Text("This permanently revokes all custom API tokens stored in Cloudflare KV (up to 500 per call). The Initial Token and master API_KEY secret are unaffected.")
+      },
+      confirmButton = {
+        Button(
+          onClick = { viewModel.confirmRevokeAll() },
+          enabled = !uiState.isRevokingAll,
+          colors = ButtonDefaults.buttonColors(
+            containerColor = semantic.dangerText,
+            contentColor = MaterialTheme.colorScheme.onError,
+          ),
+          modifier = Modifier.testTag("confirm_revoke_all_button"),
+        ) {
+          Text(if (uiState.isRevokingAll) "Revoking…" else stringResource(R.string.settings_revoke_all_custom))
+        }
+      },
+      dismissButton = {
+        TextButton(
+          onClick = { viewModel.cancelRevokeAll() },
+          enabled = !uiState.isRevokingAll,
+        ) {
+          Text(stringResource(R.string.links_cancel))
+        }
+      },
+    )
+  }
+
   if (uiState.importState.isOpen) {
     ImportLinksDialog(
       state = uiState.importState,
       onDismiss = { viewModel.closeImportDialog() },
       onConflictModeChange = { viewModel.setImportConflictMode(it) },
-      onFileLoaded = { name, content -> viewModel.loadImportJson(name, content) },
+      onFileLoaded = { name, content -> viewModel.loadImportFile(name, content) },
+      onToggleCustomizeV1 = { viewModel.toggleCustomizeV1Mapping() },
+      onSelectJsonArrayPath = { viewModel.selectJsonArrayPath(it) },
+      onCsvOptionsChange = { delim, hasHeader -> viewModel.updateCsvOptions(delim, hasHeader) },
+      onFieldModeChange = { field, mode -> viewModel.updateFieldMode(field, mode) },
+      onSourceFieldChange = { field, source -> viewModel.updateSourceField(field, source) },
+      onConstantChange = { field, constant -> viewModel.updateConstantValue(field, constant) },
       onStartImport = { viewModel.startImport() },
+      onCancelImport = { viewModel.cancelImport() },
+      onRetryFailed = { viewModel.retryFailedImport() },
+      onParsingStateChange = { viewModel.setParsingImportFile(it) },
     )
   }
 

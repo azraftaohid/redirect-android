@@ -304,10 +304,22 @@ fun LinkFormSheet(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Text(
-          text = stringResource(R.string.form_forward_query_label),
-          style = MaterialTheme.typography.bodyLarge,
-        )
+        Column(
+          modifier = Modifier
+            .weight(1f)
+            .padding(end = 12.dp),
+          verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+          Text(
+            text = stringResource(R.string.form_forward_query_label),
+            style = MaterialTheme.typography.bodyLarge,
+          )
+          Text(
+            text = stringResource(R.string.form_forward_query_helper),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
         Switch(
           checked = forwardQuery,
           onCheckedChange = { forwardQuery = it },
